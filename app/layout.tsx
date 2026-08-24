@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Vazirmatn } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/context/AuthContext";
 
 const vazirmatn = Vazirmatn({
   subsets: ["arabic"],
@@ -19,7 +20,9 @@ type RootLayoutProps = Readonly<{
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="fa" dir="rtl">
-      <body className={vazirmatn.className}>{children}</body>
+      <body className={vazirmatn.className}>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

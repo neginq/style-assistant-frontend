@@ -1,18 +1,24 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
 
 type LoginErrors = {
   phone?: string;
   password?: string;
+  general?: string;
 };
-
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<LoginErrors>({});
+  const [isLoading, setIsLoading] = useState(false);
+
+  const { login } = useAuth();
+  const router = useRouter();
 
   function validatePhone(phoneNumber: string) {
     return /^09\d{9}$/.test(phoneNumber);
@@ -30,7 +36,7 @@ export default function LoginPage() {
     }
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const newErrors: LoginErrors = {};
@@ -49,7 +55,48 @@ export default function LoginPage() {
       return;
     }
 
-    console.log("Login form is valid");
+    try {
+      setIsLoading(true);
+
+      const response = await fetch("http://localhost:5000/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          mobileNumber: phone,
+          password,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          setErrors({
+            general: "شماره موبایل یا رمز عبور اشتباه است.",
+          });
+        } else {
+          setErrors({
+            general: "خطایی در ورود رخ داد. دوباره تلاش کنید.",
+          });
+        }
+
+        return;
+      }
+
+      const data = await response.json();
+
+      login(data.token);
+
+      router.push("/");
+    } catch (error) {
+      console.error("Login error:", error);
+
+      setErrors({
+        general: "ارتباط با سرور برقرار نشد. دوباره تلاش کنید.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -184,9 +231,10 @@ export default function LoginPage() {
                 {/* Login button */}
                 <button
                   type="submit"
-                  className="w-full cursor-pointer rounded-full bg-gradient-to-l from-[#7f3f9e] via-[#984db7] to-[#ad67ca] px-8 py-3.5 text-lg font-bold text-white shadow-[0_10px_25px_rgba(105,45,135,0.35)] transition duration-200 hover:scale-[1.02] hover:brightness-110"
+                  disabled={isLoading}
+                  className="w-full cursor-pointer rounded-full bg-gradient-to-l from-[#7f3f9e] via-[#984db7] to-[#ad67ca] px-8 py-3.5 text-lg font-bold text-white shadow-[0_10px_25px_rgba(105,45,135,0.35)] transition duration-200 hover:scale-[1.02] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  ورود
+                  {isLoading ? "در حال ورود..." : "ورود"}
                 </button>
               </form>
 

@@ -1,7 +1,24 @@
+"use client";
 import Image from "next/image";
 import Link from "next/link";
-
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 export default function Home() {
+  const router = useRouter();
+  const { isLoggedIn, isAuthReady } = useAuth();
+
+  function handleStart() {
+    if (!isAuthReady) {
+      return;
+    }
+
+    if (!isLoggedIn) {
+      router.push("/login");
+      return;
+    }
+
+    router.push("/questions");
+  }
   return (
     <main className="min-h-screen bg-[#1c1e1e] text-white">
       {/* Header */}
@@ -61,12 +78,14 @@ export default function Home() {
             آماده‌ای برای اوت‌فیت امروز؟
           </p>
 
-          <Link
-            href="/questions"
-            className="inline-flex min-w-36 items-center justify-center rounded-full bg-[#9b5fbd] px-10 py-4 font-medium text-white transition duration-200 hover:scale-105 hover:bg-[#ad6dcc]"
+          <button
+            type="button"
+            onClick={handleStart}
+            disabled={!isAuthReady}
+            className="inline-flex min-w-36 items-center justify-center rounded-full bg-[#9b5fbd] px-10 py-4 font-medium text-white transition duration-200 hover:scale-105 hover:bg-[#ad6dcc] disabled:cursor-not-allowed disabled:opacity-60"
           >
             شروع
-          </Link>
+          </button>
         </div>
       </section>
     </main>

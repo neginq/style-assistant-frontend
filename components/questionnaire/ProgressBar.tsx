@@ -4,6 +4,9 @@ type ProgressBarProps = {
   currentStage: number;
   totalStages: number;
   stageTitle: string;
+
+  // اگر false باشد، اطلاعات مرحله نمایش داده نمی‌شود
+  showStageInfo?: boolean;
 };
 
 export default function ProgressBar({
@@ -12,6 +15,7 @@ export default function ProgressBar({
   currentStage,
   totalStages,
   stageTitle,
+  showStageInfo = true,
 }: ProgressBarProps) {
   const progressPercentage =
     totalQuestions === 0
@@ -20,10 +24,18 @@ export default function ProgressBar({
 
   return (
     <section className="w-full">
-      <div className="mb-3 flex flex-col gap-2 text-sm text-[#d9a7eb] sm:flex-row sm:items-center sm:justify-between">
-        <p className="font-bold">
-          مرحله {currentStage} از {totalStages} — {stageTitle}
-        </p>
+      <div
+        className={`mb-3 flex gap-2 text-sm text-[#d9a7eb] ${
+          showStageInfo
+            ? "flex-col sm:flex-row sm:items-center sm:justify-between"
+            : "justify-end"
+        }`}
+      >
+        {showStageInfo && (
+          <p className="font-bold">
+            مرحله {currentStage} از {totalStages} — {stageTitle}
+          </p>
+        )}
 
         <p>
           سؤال {currentQuestion} از {totalQuestions}
@@ -40,7 +52,9 @@ export default function ProgressBar({
       >
         <div
           className="h-full rounded-full bg-gradient-to-l from-[#8a47aa] via-[#ad65cc] to-[#d092e8] transition-all duration-300"
-          style={{ width: `${progressPercentage}%` }}
+          style={{
+            width: `${progressPercentage}%`,
+          }}
         />
       </div>
     </section>

@@ -1,40 +1,135 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
 import { questions } from "@/data/questions";
+
 import QuestionCard from "@/components/questionnaire/QuestionCard";
 import QuestionnaireLayout from "@/components/questionnaire/QuestionnaireLayout";
+
 import type { QuestionnaireAnswers } from "@/types/questionnaire";
 
-const TOTAL_STAGES = 4;
+const TOTAL_STAGES = 3;
 
 const stageTitles = {
-  1: "درباره شما",
-  2: "استایل موردنیاز",
-  3: "رنگ و سلیقه",
-  4: "کمد شما",
+  1: "نیاز امروز",
+  2: "کمد شما",
+  3: "تنظیم پیشنهاد",
 };
 
 export default function QuestionsPage() {
+  const router = useRouter();
+
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   const [answers, setAnswers] = useState<QuestionnaireAnswers>({});
 
-  // جنسیتی که کاربر در سؤال اول انتخاب کرده
-  const selectedGender = answers.gender?.[0];
+  const [profileAnswers, setProfileAnswers] =
+    useState<QuestionnaireAnswers | null>(null);
 
-  // فقط سؤال‌های مشترک + سؤال‌های مربوط به جنسیت انتخاب‌شده
-  const visibleQuestions = questions.filter((question) => {
-    if (question.gender === "both") {
-      return true;
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+
+  /*
+    فعلاً پروفایل از localStorage خوانده می‌شود.
+    بعداً GET /user/profile جایگزین این قسمت خواهد شد.
+  */
+  useEffect(() => {
+    const savedProfile = localStorage.getItem("profileAnswers");
+
+    if (!savedProfile) {
+      router.replace("/profile/setup");
+      return;
     }
 
+    try {
+      const parsedProfile: QuestionnaireAnswers = JSON.parse(savedProfile);
+
+      setProfileAnswers(parsedProfile);
+    } catch (error) {
+      console.error("Could not read profile answers:", error);
+
+      router.replace("/profile/setup");
+      return;
+    }
+
+    setIsLoadingProfile(false);
+  }, [router]);
+
+  const selectedGender = profileAnswers?.gender?.[0];
+
+  /*
+    فقط سؤال‌های مربوط به درخواست روزانه
+    + سؤال‌های مشترک
+    + سؤال‌های مربوط به جنسیت ذخیره‌شده در پروفایل
+  */
+  const visibleQuestions = useMemo(() => {
     if (!selectedGender) {
-      return false;
+      return [];
     }
 
-    return question.gender === selectedGender;
-  });
+    return questions.filter((question) => {
+      if (question.scope !== "request") {
+        return false;
+      }
+
+      if (question.gender === "both") {
+        return true;
+      }
+
+      return question.gender === selectedGender;
+    });
+  }, [selectedGender]);
+
+  /*
+    چون stageهای اصلی questions.ts قبلاً 2 تا 4 بودند،
+    اینجا برای Questionnaire جدید به 3 مرحله تبدیلشان می‌کنیم.
+  */
+  function getRequestStage(questionId: string) {
+    // مرحله 1: نیاز امروز
+    if (
+      questionId === "occasion" ||
+      questionId === "season" ||
+      questionId === "female_fit_preference" ||
+      questionId === "male_fit_preference" ||
+      questionId === "female_coverage_preference" ||
+      questionId === "male_formality_level"
+    ) {
+      return 1;
+    }
+
+    // مرحله 2: کمد شما
+    if (
+      questionId === "female_wardrobe_palette" ||
+      questionId === "male_wardrobe_palette" ||
+      questionId === "female_wardrobe_items" ||
+      questionId === "male_wardrobe_items"
+    ) {
+      return 2;
+    }
+
+    // مرحله 3: تنظیم پیشنهاد
+    if (
+      questionId === "female_exploration_level" ||
+      questionId === "male_exploration_level"
+    ) {
+      return 3;
+    }
+
+    return 1;
+  }
+
+  if (isLoadingProfile) {
+    return (
+      <main className="flex min-h-svh items-center justify-center bg-[#1c1e1e] text-white">
+        <p className="text-white/70">در حال آماده‌سازی پرسشنامه...</p>
+      </main>
+    );
+  }
+
+  if (!profileAnswers) {
+    return null;
+  }
 
   const currentQuestion = visibleQuestions[currentQuestionIndex];
 
@@ -48,26 +143,27 @@ export default function QuestionsPage() {
 
   const isLastQuestion = currentQuestionIndex === visibleQuestions.length - 1;
 
-  const currentStage = currentQuestion.stage;
+  const currentStage = getRequestStage(currentQuestion.id);
 
-  const stageTitle = stageTitles[currentStage];
+  const stageTitle = stageTitles[currentStage as keyof typeof stageTitles];
 
-  // اگر سؤال اختیاری باشد، بدون جواب هم می‌تواند جلو برود
   const canGoNext = !currentQuestion.required || selectedValues.length > 0;
 
-  const handleSelectOption = (value: string) => {
+  function handleSelectOption(value: string) {
     setAnswers((previousAnswers) => {
       const previousSelectedValues = previousAnswers[currentQuestion.id] ?? [];
 
       const isMultipleChoice = currentQuestion.type === "multiple";
 
-      // سوال چندانتخابی
+      // -------------------------
+      // سؤال چندانتخابی
+      // -------------------------
       if (isMultipleChoice) {
         const selectedOption = currentQuestion.options.find(
           (option) => option.value === value,
         );
 
-        // گزینه‌ای مثل "محدودیتی ندارم"
+        // گزینه exclusive
         if (selectedOption?.exclusive) {
           return {
             ...previousAnswers,
@@ -75,7 +171,7 @@ export default function QuestionsPage() {
           };
         }
 
-        // اگر قبلاً گزینه exclusive انتخاب شده بود، حذفش کن
+        // حذف گزینه exclusive قبلی
         const previousWithoutExclusive = previousSelectedValues.filter(
           (selectedValue) => {
             const option = currentQuestion.options.find(
@@ -88,15 +184,18 @@ export default function QuestionsPage() {
 
         const optionAlreadySelected = previousWithoutExclusive.includes(value);
 
+        // حذف انتخاب قبلی
         if (optionAlreadySelected) {
           return {
             ...previousAnswers,
+
             [currentQuestion.id]: previousWithoutExclusive.filter(
               (selectedValue) => selectedValue !== value,
             ),
           };
         }
 
+        // محدودیت تعداد انتخاب
         if (
           currentQuestion.maxSelections &&
           previousWithoutExclusive.length >= currentQuestion.maxSelections
@@ -106,49 +205,50 @@ export default function QuestionsPage() {
 
         return {
           ...previousAnswers,
+
           [currentQuestion.id]: [...previousWithoutExclusive, value],
         };
       }
 
-      // سوال تک‌انتخابی
-      const updatedAnswers = {
+      // -------------------------
+      // سؤال تک‌انتخابی
+      // -------------------------
+      return {
         ...previousAnswers,
         [currentQuestion.id]: [value],
       };
-
-      // اگر جنسیت عوض شد،
-      if (currentQuestion.id === "gender") {
-        const newGender = value;
-
-        questions.forEach((question) => {
-          if (question.gender !== "both" && question.gender !== newGender) {
-            delete updatedAnswers[question.id];
-          }
-        });
-      }
-      return updatedAnswers;
     });
-  };
+  }
 
-  const handlePrevious = () => {
-    if (isFirstQuestion) return;
+  function handlePrevious() {
+    if (isFirstQuestion) {
+      return;
+    }
 
     setCurrentQuestionIndex((previousIndex) => previousIndex - 1);
-  };
+  }
 
-  const handleNext = () => {
-    if (!canGoNext) return;
+  function handleNext() {
+    if (!canGoNext) {
+      return;
+    }
 
     if (isLastQuestion) {
-      console.log("Questionnaire answers:", answers);
+      /*
+        فعلاً خروجی request را فقط ذخیره می‌کنیم.
+        در مرحله 9 و 10 این قسمت به mapper و POST /recommend وصل می‌شود.
+      */
+      localStorage.setItem("requestAnswers", JSON.stringify(answers));
 
-      alert("پاسخ‌های شما با موفقیت ثبت شدند.");
+      console.log("Recommendation request answers:", answers);
+
+      alert("اطلاعات درخواست استایل آماده شده است.");
 
       return;
     }
 
     setCurrentQuestionIndex((previousIndex) => previousIndex + 1);
-  };
+  }
 
   return (
     <QuestionnaireLayout
@@ -162,6 +262,8 @@ export default function QuestionsPage() {
       canGoNext={canGoNext}
       onPrevious={handlePrevious}
       onNext={handleNext}
+      finalButtonText="مشاهده پیشنهاد"
+      showStageInfo={true}
     >
       <QuestionCard
         question={currentQuestion}

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+
 import ProgressBar from "./ProgressBar";
 import NavigationButtons from "./NavigationButtons";
 
@@ -19,6 +20,12 @@ type QuestionnaireLayoutProps = {
 
   onPrevious: () => void;
   onNext: () => void;
+
+  // متن دکمه آخر
+  finalButtonText?: string;
+
+  // نمایش یا عدم نمایش اطلاعات مرحله
+  showStageInfo?: boolean;
 };
 
 export default function QuestionnaireLayout({
@@ -33,6 +40,8 @@ export default function QuestionnaireLayout({
   canGoNext,
   onPrevious,
   onNext,
+  finalButtonText,
+  showStageInfo = true,
 }: QuestionnaireLayoutProps) {
   return (
     <main className="min-h-svh bg-[#1c1e1e] px-4 py-5 text-white sm:px-6">
@@ -61,6 +70,7 @@ export default function QuestionnaireLayout({
           currentStage={currentStage}
           totalStages={totalStages}
           stageTitle={stageTitle}
+          showStageInfo={showStageInfo}
         />
 
         {/* Question content */}
@@ -73,6 +83,7 @@ export default function QuestionnaireLayout({
           canGoNext={canGoNext}
           onPrevious={onPrevious}
           onNext={onNext}
+          finalButtonText={finalButtonText}
         />
       </section>
     </main>
