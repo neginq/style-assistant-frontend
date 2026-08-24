@@ -63,28 +63,50 @@ export default function QuestionsPage() {
 
       // سوال چندانتخابی
       if (isMultipleChoice) {
-        const optionAlreadySelected = previousSelectedValues.includes(value);
+        const selectedOption = currentQuestion.options.find(
+          (option) => option.value === value,
+        );
+
+        // گزینه‌ای مثل "محدودیتی ندارم"
+        if (selectedOption?.exclusive) {
+          return {
+            ...previousAnswers,
+            [currentQuestion.id]: [value],
+          };
+        }
+
+        // اگر قبلاً گزینه exclusive انتخاب شده بود، حذفش کن
+        const previousWithoutExclusive = previousSelectedValues.filter(
+          (selectedValue) => {
+            const option = currentQuestion.options.find(
+              (item) => item.value === selectedValue,
+            );
+
+            return !option?.exclusive;
+          },
+        );
+
+        const optionAlreadySelected = previousWithoutExclusive.includes(value);
 
         if (optionAlreadySelected) {
           return {
             ...previousAnswers,
-            [currentQuestion.id]: previousSelectedValues.filter(
+            [currentQuestion.id]: previousWithoutExclusive.filter(
               (selectedValue) => selectedValue !== value,
             ),
           };
         }
 
-        // اگر محدودیت تعداد انتخاب داریم
         if (
           currentQuestion.maxSelections &&
-          previousSelectedValues.length >= currentQuestion.maxSelections
+          previousWithoutExclusive.length >= currentQuestion.maxSelections
         ) {
           return previousAnswers;
         }
 
         return {
           ...previousAnswers,
-          [currentQuestion.id]: [...previousSelectedValues, value],
+          [currentQuestion.id]: [...previousWithoutExclusive, value],
         };
       }
 
@@ -95,12 +117,15 @@ export default function QuestionsPage() {
       };
 
       // اگر جنسیت عوض شد،
-      // پاسخ احتمالی قبلی مربوط به فرم بدن حذف شود
       if (currentQuestion.id === "gender") {
-        delete updatedAnswers.female_body_shape;
-        delete updatedAnswers.male_body_shape;
-      }
+        const newGender = value;
 
+        questions.forEach((question) => {
+          if (question.gender !== "both" && question.gender !== newGender) {
+            delete updatedAnswers[question.id];
+          }
+        });
+      }
       return updatedAnswers;
     });
   };

@@ -591,4 +591,490 @@ export const questions: Question[] = [
       },
     ],
   },
+  {
+    id: "female_favorite_color_palettes",
+    title: "بیشتر به کدام خانواده‌های رنگی علاقه دارید؟",
+    gender: "female",
+    stage: 3,
+    type: "multiple",
+    visualType: "color-palette",
+    scope: "request",
+    required: true,
+    maxSelections: 3,
+    helperText: "حداکثر سه خانواده رنگی را انتخاب کنید.",
+
+    options: [
+      {
+        label: "رنگ‌های خنثی",
+        value: "neutral",
+        colors: ["#F5F5F5", "#111111", "#7A7A7A", "#CFCFCF"],
+      },
+      {
+        label: "رنگ‌های کرمی و قهوه‌ای",
+        value: "cream_brown",
+        colors: ["#F2E3C6", "#D2B48C", "#9A6B4F", "#5A3A2E"],
+      },
+      {
+        label: "رنگ‌های گرم",
+        value: "warm",
+        colors: ["#C94C4C", "#E8873A", "#B95F3B", "#D6A15C"],
+      },
+      {
+        label: "رنگ‌های سرد",
+        value: "cool",
+        colors: ["#5A86C8", "#8067A9", "#5F9E93", "#8CA9C9"],
+      },
+      {
+        label: "رنگ‌های پاستلی",
+        value: "pastel",
+        colors: ["#F3C6D3", "#C9DDF2", "#D9C8EA", "#CFE6D5"],
+      },
+      {
+        label: "رنگ‌های تیره",
+        value: "dark",
+        colors: ["#1E2430", "#3A2536", "#233B35", "#4A302B"],
+      },
+      {
+        label: "رنگ‌های روشن و شاد",
+        value: "bright",
+        colors: ["#F4C542", "#EE6A5B", "#5DB7DE", "#76C66A"],
+      },
+    ],
+  },
+  {
+    id: "male_favorite_color_palettes",
+    title: "بیشتر به کدام خانواده‌های رنگی علاقه دارید؟",
+    gender: "male",
+    stage: 3,
+    type: "multiple",
+    visualType: "color-palette",
+    scope: "request",
+    required: true,
+    maxSelections: 3,
+    helperText: "حداکثر سه خانواده رنگی را انتخاب کنید.",
+
+    options: [
+      {
+        label: "رنگ‌های خنثی",
+        value: "neutral",
+        colors: ["#111111", "#F5F5F5", "#747474", "#BFC1C3"],
+      },
+      {
+        label: "رنگ‌های کرمی و قهوه‌ای",
+        value: "cream_brown",
+        colors: ["#E8D9BC", "#C2A178", "#8B6548", "#4C3428"],
+      },
+      {
+        label: "آبی و سرمه‌ای",
+        value: "blue_navy",
+        colors: ["#A9C7E8", "#4B77A8", "#244A73", "#172A46"],
+      },
+      {
+        label: "سبز و زیتونی",
+        value: "green_olive",
+        colors: ["#829B72", "#6F7C45", "#495839", "#B1B78B"],
+      },
+      {
+        label: "رنگ‌های گرم و خاکی",
+        value: "warm_earthy",
+        colors: ["#B96F45", "#A77A52", "#C39A64", "#7C543A"],
+      },
+      {
+        label: "رنگ‌های پاستلی",
+        value: "pastel",
+        colors: ["#C9D9E8", "#D7C9DF", "#D8E3C5", "#E8D3C3"],
+      },
+      {
+        label: "رنگ‌های تیره",
+        value: "dark",
+        colors: ["#1F2732", "#26362E", "#3C2B33", "#332E2A"],
+      },
+      {
+        label: "رنگ‌های روشن و شاد",
+        value: "bright",
+        colors: ["#E6C43B", "#D96658", "#519AC2", "#66A85B"],
+      },
+    ],
+  },
+  {
+    id: "colors_disliked",
+    title: "کدام رنگ‌ها را معمولاً نمی‌پوشید یا دوست ندارید؟",
+    gender: "both",
+    stage: 3,
+    type: "multiple",
+    visualType: "color-palette",
+    scope: "request",
+    required: true,
+    maxSelections: 3,
+    helperText: "حداکثر سه گزینه را انتخاب کنید.",
+
+    options: [
+      {
+        label: "مشکی",
+        value: "black",
+        colors: ["#111111"],
+      },
+      {
+        label: "سفید و کرم",
+        value: "white_cream",
+        colors: ["#F7F7F4", "#EADCC5"],
+      },
+      {
+        label: "قهوه‌ای",
+        value: "brown",
+        colors: ["#7A5138"],
+      },
+      {
+        label: "قرمز و نارنجی",
+        value: "red_orange",
+        colors: ["#C94747", "#E7823D"],
+      },
+      {
+        label: "صورتی",
+        value: "pink",
+        colors: ["#E89AB7"],
+      },
+      {
+        label: "زرد",
+        value: "yellow",
+        colors: ["#E8C84C"],
+      },
+      {
+        label: "سبز",
+        value: "green",
+        colors: ["#669265"],
+      },
+      {
+        label: "آبی",
+        value: "blue",
+        colors: ["#5585B5"],
+      },
+      {
+        label: "بنفش",
+        value: "purple",
+        colors: ["#8065A5"],
+      },
+      {
+        label: "محدودیتی ندارم",
+        value: "none",
+        exclusive: true,
+      },
+    ],
+  },
+  {
+    id: "female_wardrobe_palette",
+    title: "بیشتر لباس‌های کمد شما در کدام پالت رنگی هستند؟",
+    gender: "female",
+    stage: 4,
+    type: "single",
+    visualType: "color-palette",
+    scope: "request",
+    required: true,
+
+    options: [
+      {
+        label: "مشکی، سفید و خاکستری",
+        value: "black_white_gray",
+        colors: ["#111111", "#F5F5F5", "#7A7A7A", "#C8C8C8"],
+      },
+      {
+        label: "کرم، بژ و قهوه‌ای",
+        value: "cream_beige_brown",
+        colors: ["#F2E4C8", "#D8C3A5", "#A97955", "#6A4633"],
+      },
+      {
+        label: "آبی و سرمه‌ای",
+        value: "blue_navy",
+        colors: ["#AFC8E8", "#6D94C4", "#355E8D", "#1E3150"],
+      },
+      {
+        label: "رنگ‌های پاستلی",
+        value: "pastel",
+        colors: ["#F3C7D6", "#C9DDF2", "#D8C9EB", "#D3E6D2"],
+      },
+      {
+        label: "رنگ‌های گرم و خاکی",
+        value: "warm_earthy",
+        colors: ["#C27A4A", "#A96F4C", "#B79363", "#7C6442"],
+      },
+      {
+        label: "رنگ‌های شاد و متنوع",
+        value: "bright_varied",
+        colors: ["#E95E5E", "#F2C84B", "#5BA7D7", "#6DBA6E"],
+      },
+      {
+        label: "ترکیبی از همه رنگ‌ها",
+        value: "mixed",
+        colors: ["#1F1F1F", "#D7B98E", "#557EAA", "#C56B7D"],
+      },
+    ],
+  },
+  {
+    id: "male_wardrobe_palette",
+    title: "بیشتر لباس‌های کمد شما در کدام پالت رنگی هستند؟",
+    gender: "male",
+    stage: 4,
+    type: "single",
+    visualType: "color-palette",
+    scope: "request",
+    required: true,
+
+    options: [
+      {
+        label: "مشکی، سفید و خاکستری",
+        value: "black_white_gray",
+        colors: ["#111111", "#F5F5F5", "#777777", "#BEBEBE"],
+      },
+      {
+        label: "کرم، بژ و قهوه‌ای",
+        value: "cream_beige_brown",
+        colors: ["#E8DDC7", "#D0B998", "#9B7656", "#5A3E2E"],
+      },
+      {
+        label: "آبی، سرمه‌ای و طوسی",
+        value: "blue_navy_gray",
+        colors: ["#6F92B7", "#263F5E", "#737A83", "#A4A8AD"],
+      },
+      {
+        label: "سبز، زیتونی و رنگ‌های خاکی",
+        value: "green_olive_earthy",
+        colors: ["#71865D", "#707745", "#9A805A", "#66533F"],
+      },
+      {
+        label: "رنگ‌های تیره",
+        value: "dark",
+        colors: ["#1F2933", "#2C3138", "#343029", "#26362F"],
+      },
+      {
+        label: "رنگ‌های روشن و شاد",
+        value: "bright",
+        colors: ["#E4C64A", "#D96A58", "#5B9FC9", "#72AA63"],
+      },
+      {
+        label: "ترکیبی از همه رنگ‌ها",
+        value: "mixed",
+        colors: ["#1D1D1D", "#B48D68", "#557EA7", "#779665"],
+      },
+    ],
+  },
+  {
+    id: "female_wardrobe_items",
+    title:
+      "کدام آیتم‌ها را در کمد خود دارید و دوست دارید در استایل استفاده شوند؟",
+    gender: "female",
+    stage: 4,
+    type: "multiple",
+    visualType: "text",
+    scope: "request",
+    required: true,
+    maxSelections: 5,
+    helperText: "حداکثر پنج گزینه را انتخاب کنید.",
+
+    options: [
+      {
+        label: "مانتوی ساده یا کت بلند",
+        value: "long_coat",
+        //icon: "long_coat",
+      },
+      {
+        label: "کت یا بلیزر",
+        value: "blazer",
+        //icon: "blazer",
+      },
+      {
+        label: "شومیز یا پیراهن",
+        value: "blouse",
+        //icon: "blouse",
+      },
+      {
+        label: "تی‌شرت یا تاپ ساده",
+        value: "tshirt_top",
+        //icon: "tshirt",
+      },
+      {
+        label: "شلوار جین",
+        value: "jeans",
+        //icon: "jeans",
+      },
+      {
+        label: "شلوار پارچه‌ای",
+        value: "trousers",
+        //icon: "trousers",
+      },
+      {
+        label: "دامن",
+        value: "skirt",
+        //icon: "skirt",
+      },
+      {
+        label: "کفش کتانی",
+        value: "sneakers",
+        //icon: "sneakers",
+      },
+      {
+        label: "کفش رسمی یا پاشنه‌دار",
+        value: "formal_shoes",
+        //icon: "formal_shoes",
+      },
+      {
+        label: "کیف ساده و روزمره",
+        value: "bag",
+        //icon: "bag",
+      },
+      {
+        label: "ترجیح می‌دهم استایل کاملاً جدید پیشنهاد شود",
+        value: "new_outfit",
+        exclusive: true,
+        //icon: "new_outfit",
+      },
+    ],
+  },
+  {
+    id: "male_wardrobe_items",
+    title:
+      "کدام آیتم‌ها را در کمد خود دارید و دوست دارید در استایل استفاده شوند؟",
+    gender: "male",
+    stage: 4,
+    type: "multiple",
+    visualType: "text",
+    scope: "request",
+    required: true,
+    maxSelections: 5,
+    helperText: "حداکثر پنج گزینه را انتخاب کنید.",
+
+    options: [
+      {
+        label: "تی‌شرت ساده",
+        value: "tshirt",
+        //icon: "tshirt",
+      },
+      {
+        label: "پولوشرت",
+        value: "polo",
+        //icon: "polo",
+      },
+      {
+        label: "پیراهن مردانه",
+        value: "shirt",
+        //icon: "shirt",
+      },
+      {
+        label: "هودی یا سویشرت",
+        value: "hoodie",
+        //icon: "hoodie",
+      },
+      {
+        label: "ژاکت یا بافت",
+        value: "knitwear",
+        //icon: "knitwear",
+      },
+      {
+        label: "کت یا بلیزر",
+        value: "blazer",
+        //icon: "blazer",
+      },
+      {
+        label: "کت جین یا اورشرت",
+        value: "overshirt",
+        //icon: "overshirt",
+      },
+      {
+        label: "شلوار جین",
+        value: "jeans",
+        //icon: "jeans",
+      },
+      {
+        label: "شلوار پارچه‌ای",
+        value: "trousers",
+        //icon: "trousers",
+      },
+      {
+        label: "شلوار کارگو",
+        value: "cargo",
+        //icon: "cargo",
+      },
+      {
+        label: "کتانی",
+        value: "sneakers",
+        //icon: "sneakers",
+      },
+      {
+        label: "کفش رسمی یا لوفر",
+        value: "formal_shoes",
+        //icon: "formal_shoes",
+      },
+      {
+        label: "ترجیح می‌دهم استایل کاملاً جدید پیشنهاد شود",
+        value: "new_outfit",
+        exclusive: true,
+        //icon: "new_outfit",
+      },
+    ],
+  },
+  {
+    id: "female_exploration_level",
+    title: "دوست دارید پیشنهاد نهایی چقدر با استایل همیشگی شما متفاوت باشد؟",
+    gender: "female",
+    stage: 4,
+    type: "single",
+    visualType: "text",
+    scope: "request",
+    required: true,
+
+    options: [
+      {
+        label: "کاملاً آشنا و نزدیک به استایل فعلی من",
+        value: "very_familiar",
+      },
+      {
+        label: "کمی متفاوت، اما همچنان قابل‌استفاده",
+        value: "slightly_different",
+      },
+      {
+        label: "ترکیبی از استایل فعلی و ایده‌های جدید",
+        value: "balanced_exploration",
+      },
+      {
+        label: "خلاقانه و متفاوت",
+        value: "creative",
+      },
+      {
+        label: "مطمئن نیستم",
+        value: "unsure",
+      },
+    ],
+  },
+  {
+    id: "male_exploration_level",
+    title: "دوست دارید پیشنهاد نهایی چقدر با استایل همیشگی شما متفاوت باشد؟",
+    gender: "male",
+    stage: 4,
+    type: "single",
+    visualType: "text",
+    scope: "request",
+    required: true,
+
+    options: [
+      {
+        label: "کاملاً نزدیک به استایل فعلی من",
+        value: "very_familiar",
+      },
+      {
+        label: "کمی متفاوت، اما قابل‌استفاده",
+        value: "slightly_different",
+      },
+      {
+        label: "ترکیبی از استایل همیشگی و ایده‌های جدید",
+        value: "balanced_exploration",
+      },
+      {
+        label: "خلاقانه و متفاوت",
+        value: "creative",
+      },
+      {
+        label: "جسورانه و خارج از انتخاب‌های معمول من",
+        value: "bold",
+      },
+    ],
+  },
 ];

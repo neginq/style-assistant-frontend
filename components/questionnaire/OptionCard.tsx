@@ -1,5 +1,7 @@
 import Image from "next/image";
-import type { QuestionOption, VisualType } from "@/types/questionnaire";
+import { Sparkles } from "lucide-react";
+
+//import type { QuestionOption, VisualType } from "@/types/questionnaire";
 
 type OptionCardProps = {
   option: QuestionOption;
@@ -8,8 +10,13 @@ type OptionCardProps = {
   onSelect: () => void;
 };
 
-function getOptionIcon(icon?: string) {
+/*
+  ایموجی‌های سوال‌های قبلی
+  مثل موقعیت و فصل
+*/
+function getEmojiIcon(icon?: string) {
   switch (icon) {
+    // Question 6 - Occasion
     case "daily":
       return "☀️";
 
@@ -34,6 +41,7 @@ function getOptionIcon(icon?: string) {
     case "travel":
       return "🧳";
 
+    // Question 7 - Season
     case "spring":
       return "🌸";
 
@@ -60,7 +68,7 @@ export default function OptionCard({
   selected,
   onSelect,
 }: OptionCardProps) {
-  const icon = getOptionIcon(option.icon);
+  const emojiIcon = getEmojiIcon(option.icon);
 
   return (
     <button
@@ -82,7 +90,7 @@ export default function OptionCard({
         </span>
       )}
 
-      {/* عکس گزینه - مخصوص سوال‌های تصویری */}
+      {/* عکس گزینه - مخصوص سوال‌های تصویری مثل سوال 8 */}
       {visualType === "image" && option.image && (
         <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-white">
           <Image
@@ -95,18 +103,34 @@ export default function OptionCard({
         </div>
       )}
 
-      {/* آیکون گزینه */}
-      {visualType !== "image" && icon && (
+      {/* ایموجی سوال‌های 6 و 7 */}
+      {visualType !== "image" && emojiIcon && (
         <span className="text-4xl" aria-hidden="true">
-          {icon}
+          {emojiIcon}
         </span>
       )}
+
+      {/* فقط برای گزینه "استایل کاملاً جدید" در سوال 14 */}
+      {/*{visualType !== "image" && option.icon === "new_outfit" && (
+        <span
+          className={`flex h-14 w-14 items-center justify-center rounded-2xl transition ${
+            selected ? "bg-white/15" : "bg-white/35"
+          }`}
+          aria-hidden="true"
+        >
+          <Sparkles
+            className={`h-9 w-9 ${selected ? "text-white" : "text-[#643278]"}`}
+          />
+        </span>
+      )}*/}
 
       {/* رنگ پوست */}
       {visualType === "color-circle" && option.colors?.[0] && (
         <span
           className="h-14 w-14 rounded-full border-2 border-white/70 shadow-md"
-          style={{ backgroundColor: option.colors[0] }}
+          style={{
+            backgroundColor: option.colors[0],
+          }}
           aria-hidden="true"
         />
       )}
@@ -121,7 +145,9 @@ export default function OptionCard({
             <span
               key={color}
               className="h-9 w-9 rounded-full border-2 border-white/70 shadow-sm"
-              style={{ backgroundColor: color }}
+              style={{
+                backgroundColor: color,
+              }}
             />
           ))}
         </div>

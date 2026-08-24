@@ -24,6 +24,7 @@ export type QuestionOption = {
   colors?: string[];
 
   icon?: string;
+  exclusive?: boolean;
 };
 
 export type Question = {
