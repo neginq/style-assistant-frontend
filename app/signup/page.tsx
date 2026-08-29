@@ -1,30 +1,39 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 type SignupErrors = {
+  firstName?: string;
+  lastName?: string;
   phone?: string;
+  password?: string;
+  general?: string;
 };
 
 export default function SignupPage() {
+  const router = useRouter();
+
   const [showPassword, setShowPassword] = useState(false);
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+
   const [errors, setErrors] = useState<SignupErrors>({});
+  const [isLoading, setIsLoading] = useState(false);
 
   function validatePhone(phoneNumber: string) {
-    // شماره موبایل ایران:
-    // با 09 شروع شود و در مجموع 11 رقم داشته باشد.
     return /^09\d{9}$/.test(phoneNumber);
   }
 
   function handlePhoneChange(value: string) {
-    // فقط عددها نگه داشته می‌شوند.
     const numericValue = value.replace(/\D/g, "").slice(0, 11);
 
     setPhone(numericValue);
 
-    // وقتی کاربر دوباره تایپ می‌کند، خطای قبلی پاک شود.
     if (errors.phone) {
       setErrors((previous) => ({
         ...previous,
@@ -33,13 +42,25 @@ export default function SignupPage() {
     }
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const newErrors: SignupErrors = {};
 
+    if (!firstName.trim()) {
+      newErrors.firstName = "نام را وارد کنید.";
+    }
+
+    if (!lastName.trim()) {
+      newErrors.lastName = "نام خانوادگی را وارد کنید.";
+    }
+
     if (!validatePhone(phone)) {
       newErrors.phone = "شماره موبایل معتبر نیست؛ مانند 09123456789 وارد کنید.";
+    }
+
+    if (password.trim().length < 6) {
+      newErrors.password = "رمز عبور باید حداقل ۶ کاراکتر باشد.";
     }
 
     setErrors(newErrors);
@@ -48,19 +69,58 @@ export default function SignupPage() {
       return;
     }
 
-    // فعلاً اطلاعات را به دیتابیس ارسال نمی‌کنیم.
-    console.log("Signup form is valid");
+    try {
+      setIsLoading(true);
+
+      const response = await fetch("http://localhost:5000/auth/signup", {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          mobileNumber: phone,
+          password,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 409) {
+          setErrors({
+            general: "این شماره موبایل قبلاً ثبت شده است.",
+          });
+        } else {
+          setErrors({
+            general: "ثبت‌نام انجام نشد. دوباره تلاش کنید.",
+          });
+        }
+
+        return;
+      }
+
+      router.push("/login");
+    } catch (error) {
+      console.error("Signup error:", error);
+
+      setErrors({
+        general: "ارتباط با سرور برقرار نشد. دوباره تلاش کنید.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
     <main className="min-h-[100svh] overflow-x-hidden bg-[#1c1e1e] px-4 py-3">
       <section className="mx-auto flex min-h-[calc(100svh-24px)] w-full max-w-6xl items-center justify-center">
-        {/* dir=ltr فقط برای کنترل قطعی جای تصویر و فرم است */}
         <div
           dir="ltr"
           className="flex w-full flex-col items-center justify-center lg:min-h-[650px] lg:flex-row"
         >
-          {/* Signup form - سمت چپ */}
+          {/* Signup form */}
           <div
             dir="rtl"
             className="relative z-10 w-full max-w-[560px] lg:flex-none"
@@ -89,8 +149,29 @@ export default function SignupPage() {
                     name="firstName"
                     type="text"
                     autoComplete="given-name"
-                    className="w-full border-b-2 border-[#512660] bg-transparent px-1 py-2 text-lg outline-none transition focus:border-[#7d3b96]"
+                    value={firstName}
+                    onChange={(event) => {
+                      setFirstName(event.target.value);
+
+                      if (errors.firstName) {
+                        setErrors((previous) => ({
+                          ...previous,
+                          firstName: undefined,
+                        }));
+                      }
+                    }}
+                    className={`w-full border-b-2 bg-transparent px-1 py-2 text-lg outline-none transition ${
+                      errors.firstName
+                        ? "border-red-700"
+                        : "border-[#512660] focus:border-[#7d3b96]"
+                    }`}
                   />
+
+                  {errors.firstName && (
+                    <p className="mt-1 text-sm font-medium text-red-800">
+                      {errors.firstName}
+                    </p>
+                  )}
                 </div>
 
                 {/* Last name */}
@@ -108,8 +189,29 @@ export default function SignupPage() {
                     name="lastName"
                     type="text"
                     autoComplete="family-name"
-                    className="w-full border-b-2 border-[#512660] bg-transparent px-1 py-2 text-lg outline-none transition focus:border-[#7d3b96]"
+                    value={lastName}
+                    onChange={(event) => {
+                      setLastName(event.target.value);
+
+                      if (errors.lastName) {
+                        setErrors((previous) => ({
+                          ...previous,
+                          lastName: undefined,
+                        }));
+                      }
+                    }}
+                    className={`w-full border-b-2 bg-transparent px-1 py-2 text-lg outline-none transition ${
+                      errors.lastName
+                        ? "border-red-700"
+                        : "border-[#512660] focus:border-[#7d3b96]"
+                    }`}
                   />
+
+                  {errors.lastName && (
+                    <p className="mt-1 text-sm font-medium text-red-800">
+                      {errors.lastName}
+                    </p>
+                  )}
                 </div>
 
                 {/* Phone */}
@@ -133,7 +235,6 @@ export default function SignupPage() {
                     onChange={(event) => handlePhoneChange(event.target.value)}
                     placeholder="09123456789"
                     aria-invalid={Boolean(errors.phone)}
-                    aria-describedby={errors.phone ? "phone-error" : undefined}
                     className={`w-full border-b-2 bg-transparent px-1 py-2 text-left text-lg outline-none transition placeholder:text-[#744780] ${
                       errors.phone
                         ? "border-red-700"
@@ -142,10 +243,7 @@ export default function SignupPage() {
                   />
 
                   {errors.phone && (
-                    <p
-                      id="phone-error"
-                      className="mt-1 text-sm font-medium text-red-800"
-                    >
+                    <p className="mt-1 text-sm font-medium text-red-800">
                       {errors.phone}
                     </p>
                   )}
@@ -161,13 +259,30 @@ export default function SignupPage() {
                     <span>رمز عبور</span>
                   </label>
 
-                  <div className="flex items-center border-b-2 border-[#512660] transition focus-within:border-[#7d3b96]">
+                  <div
+                    className={`flex items-center border-b-2 transition ${
+                      errors.password
+                        ? "border-red-700"
+                        : "border-[#512660] focus-within:border-[#7d3b96]"
+                    }`}
+                  >
                     <input
                       id="password"
                       name="password"
                       type={showPassword ? "text" : "password"}
                       autoComplete="new-password"
                       dir="ltr"
+                      value={password}
+                      onChange={(event) => {
+                        setPassword(event.target.value);
+
+                        if (errors.password) {
+                          setErrors((previous) => ({
+                            ...previous,
+                            password: undefined,
+                          }));
+                        }
+                      }}
                       className="w-full bg-transparent px-1 py-2 text-left text-lg outline-none"
                     />
 
@@ -182,15 +297,29 @@ export default function SignupPage() {
                       {showPassword ? <EyeIcon /> : <EyeOffIcon />}
                     </button>
                   </div>
+
+                  {errors.password && (
+                    <p className="mt-1 text-sm font-medium text-red-800">
+                      {errors.password}
+                    </p>
+                  )}
                 </div>
+
+                {/* Backend error */}
+                {errors.general && (
+                  <p className="rounded-xl bg-red-100/70 px-4 py-2 text-center text-sm font-medium text-red-800">
+                    {errors.general}
+                  </p>
+                )}
 
                 {/* Submit */}
                 <div className="pt-3 text-center">
                   <button
                     type="submit"
-                    className="min-w-52 cursor-pointer rounded-full bg-gradient-to-l from-[#7f3f9e] via-[#984db7] to-[#ad67ca] px-10 py-3 text-lg font-bold text-white shadow-[0_10px_25px_rgba(105,45,135,0.35)] transition duration-200 hover:scale-[1.03] hover:brightness-110"
+                    disabled={isLoading}
+                    className="min-w-52 cursor-pointer rounded-full bg-gradient-to-l from-[#7f3f9e] via-[#984db7] to-[#ad67ca] px-10 py-3 text-lg font-bold text-white shadow-[0_10px_25px_rgba(105,45,135,0.35)] transition duration-200 hover:scale-[1.03] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    ثبت نام
+                    {isLoading ? "در حال ثبت‌نام..." : "ثبت نام"}
                   </button>
                 </div>
               </form>
@@ -207,7 +336,7 @@ export default function SignupPage() {
             </div>
           </div>
 
-          {/* Image - سمت راست و کمی زیر کارت */}
+          {/* Image */}
           <div className="relative hidden h-[590px] w-[58%] max-w-[720px] flex-none overflow-hidden rounded-[42px] lg:-ml-20 lg:block">
             <img
               src="/images/login.jpg"

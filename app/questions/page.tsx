@@ -8,6 +8,10 @@ import { questions } from "@/data/questions";
 import QuestionCard from "@/components/questionnaire/QuestionCard";
 import QuestionnaireLayout from "@/components/questionnaire/QuestionnaireLayout";
 
+import { useAuth } from "@/context/AuthContext";
+
+import { mapRequestAnswersToBackend } from "@/utils/requestMapper";
+
 import type { QuestionnaireAnswers } from "@/types/questionnaire";
 
 const TOTAL_STAGES = 3;
@@ -18,50 +22,106 @@ const stageTitles = {
   3: "تنظیم پیشنهاد",
 };
 
+type BackendProfileResponse = {
+  gender: string | null;
+  styleProfile: unknown | null;
+};
+
 export default function QuestionsPage() {
   const router = useRouter();
+
+  const { token, isAuthReady, isLoggedIn, logout } = useAuth();
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   const [answers, setAnswers] = useState<QuestionnaireAnswers>({});
 
-  const [profileAnswers, setProfileAnswers] =
-    useState<QuestionnaireAnswers | null>(null);
+  const [selectedGender, setSelectedGender] = useState<
+    "female" | "male" | null
+  >(null);
 
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
+  const [loadError, setLoadError] = useState("");
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [submitError, setSubmitError] = useState("");
+
   /*
-    فعلاً پروفایل از localStorage خوانده می‌شود.
-    بعداً GET /user/profile جایگزین این قسمت خواهد شد.
+    جنسیت کاربر از Backend گرفته می‌شود.
   */
   useEffect(() => {
-    const savedProfile = localStorage.getItem("profileAnswers");
-
-    if (!savedProfile) {
-      router.replace("/profile/setup");
+    if (!isAuthReady) {
       return;
     }
 
-    try {
-      const parsedProfile: QuestionnaireAnswers = JSON.parse(savedProfile);
-
-      setProfileAnswers(parsedProfile);
-    } catch (error) {
-      console.error("Could not read profile answers:", error);
-
-      router.replace("/profile/setup");
+    if (!isLoggedIn || !token) {
+      router.replace("/login");
       return;
     }
 
-    setIsLoadingProfile(false);
-  }, [router]);
+    const authToken = token;
 
-  const selectedGender = profileAnswers?.gender?.[0];
+    async function loadProfile() {
+      try {
+        setIsLoadingProfile(true);
+        setLoadError("");
+
+        const response = await fetch("http://localhost:5000/user/profile", {
+          method: "GET",
+
+          headers: {
+            Authorization: authToken,
+          },
+        });
+
+        if (response.status === 401) {
+          logout();
+          router.replace("/login");
+          return;
+        }
+
+        if (!response.ok) {
+          setLoadError(
+            "دریافت اطلاعات پروفایل انجام نشد. لطفاً دوباره تلاش کنید.",
+          );
+
+          return;
+        }
+
+        const data: BackendProfileResponse = await response.json();
+
+        if (!data.styleProfile) {
+          router.replace("/profile/setup");
+          return;
+        }
+
+        if (data.gender === "FEMALE") {
+          setSelectedGender("female");
+          return;
+        }
+
+        if (data.gender === "MALE") {
+          setSelectedGender("male");
+          return;
+        }
+
+        router.replace("/profile/setup");
+      } catch (error) {
+        console.error("Could not load profile:", error);
+
+        setLoadError("ارتباط با سرور برقرار نشد. لطفاً دوباره تلاش کنید.");
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    }
+
+    loadProfile();
+  }, [isAuthReady, isLoggedIn, token, router, logout]);
 
   /*
-    فقط سؤال‌های مربوط به درخواست روزانه
-    + سؤال‌های مشترک
-    + سؤال‌های مربوط به جنسیت ذخیره‌شده در پروفایل
+    فقط سؤال‌های Request مربوط به جنسیت کاربر.
   */
   const visibleQuestions = useMemo(() => {
     if (!selectedGender) {
@@ -81,12 +141,7 @@ export default function QuestionsPage() {
     });
   }, [selectedGender]);
 
-  /*
-    چون stageهای اصلی questions.ts قبلاً 2 تا 4 بودند،
-    اینجا برای Questionnaire جدید به 3 مرحله تبدیلشان می‌کنیم.
-  */
   function getRequestStage(questionId: string) {
-    // مرحله 1: نیاز امروز
     if (
       questionId === "occasion" ||
       questionId === "season" ||
@@ -98,7 +153,6 @@ export default function QuestionsPage() {
       return 1;
     }
 
-    // مرحله 2: کمد شما
     if (
       questionId === "female_wardrobe_palette" ||
       questionId === "male_wardrobe_palette" ||
@@ -108,7 +162,6 @@ export default function QuestionsPage() {
       return 2;
     }
 
-    // مرحله 3: تنظیم پیشنهاد
     if (
       questionId === "female_exploration_level" ||
       questionId === "male_exploration_level"
@@ -119,7 +172,7 @@ export default function QuestionsPage() {
     return 1;
   }
 
-  if (isLoadingProfile) {
+  if (!isAuthReady || isLoadingProfile) {
     return (
       <main className="flex min-h-svh items-center justify-center bg-[#1c1e1e] text-white">
         <p className="text-white/70">در حال آماده‌سازی پرسشنامه...</p>
@@ -127,7 +180,24 @@ export default function QuestionsPage() {
     );
   }
 
-  if (!profileAnswers) {
+  if (loadError) {
+    return (
+      <main
+        dir="rtl"
+        className="flex min-h-svh items-center justify-center bg-[#1c1e1e] px-4 text-white"
+      >
+        <div className="w-full max-w-lg rounded-[30px] border border-red-400/20 bg-[#29252d] p-8 text-center">
+          <h1 className="mb-3 text-xl font-bold text-[#ebc6f5]">
+            خطا در دریافت پروفایل
+          </h1>
+
+          <p className="text-sm leading-7 text-white/60">{loadError}</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!selectedGender) {
     return null;
   }
 
@@ -155,15 +225,11 @@ export default function QuestionsPage() {
 
       const isMultipleChoice = currentQuestion.type === "multiple";
 
-      // -------------------------
-      // سؤال چندانتخابی
-      // -------------------------
       if (isMultipleChoice) {
         const selectedOption = currentQuestion.options.find(
           (option) => option.value === value,
         );
 
-        // گزینه exclusive
         if (selectedOption?.exclusive) {
           return {
             ...previousAnswers,
@@ -171,7 +237,6 @@ export default function QuestionsPage() {
           };
         }
 
-        // حذف گزینه exclusive قبلی
         const previousWithoutExclusive = previousSelectedValues.filter(
           (selectedValue) => {
             const option = currentQuestion.options.find(
@@ -184,7 +249,6 @@ export default function QuestionsPage() {
 
         const optionAlreadySelected = previousWithoutExclusive.includes(value);
 
-        // حذف انتخاب قبلی
         if (optionAlreadySelected) {
           return {
             ...previousAnswers,
@@ -195,7 +259,6 @@ export default function QuestionsPage() {
           };
         }
 
-        // محدودیت تعداد انتخاب
         if (
           currentQuestion.maxSelections &&
           previousWithoutExclusive.length >= currentQuestion.maxSelections
@@ -210,9 +273,6 @@ export default function QuestionsPage() {
         };
       }
 
-      // -------------------------
-      // سؤال تک‌انتخابی
-      // -------------------------
       return {
         ...previousAnswers,
         [currentQuestion.id]: [value],
@@ -228,48 +288,141 @@ export default function QuestionsPage() {
     setCurrentQuestionIndex((previousIndex) => previousIndex - 1);
   }
 
-  function handleNext() {
-    if (!canGoNext) {
+  async function handleNext() {
+    if (!canGoNext || isSubmitting) {
       return;
     }
 
-    if (isLastQuestion) {
+    /*
+      هنوز به آخر پرسشنامه نرسیده‌ایم.
+    */
+    if (!isLastQuestion) {
+      setCurrentQuestionIndex((previousIndex) => previousIndex + 1);
+
+      return;
+    }
+
+    /*
+      کاربر روی "مشاهده پیشنهاد" زده است.
+    */
+    if (!selectedGender || !token) {
+      return;
+    }
+
+    const authToken = token;
+
+    try {
+      setIsSubmitting(true);
+      setSubmitError("");
+
       /*
-        فعلاً خروجی request را فقط ذخیره می‌کنیم.
-        در مرحله 9 و 10 این قسمت به mapper و POST /recommend وصل می‌شود.
+        answers فرانت
+              ↓
+        Payload مورد قبول Backend
       */
-      localStorage.setItem("requestAnswers", JSON.stringify(answers));
+      const requestPayload = mapRequestAnswersToBackend(
+        answers,
+        selectedGender,
+      );
 
-      console.log("Recommendation request answers:", answers);
+      /*
+        Payload برای /recommend ارسال می‌شود.
+      */
+      const response = await fetch("http://localhost:5000/recommend", {
+        method: "POST",
 
-      alert("اطلاعات درخواست استایل آماده شده است.");
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: authToken,
+        },
 
-      return;
+        body: JSON.stringify(requestPayload),
+      });
+
+      if (response.status === 401) {
+        logout();
+        router.replace("/login");
+        return;
+      }
+
+      if (response.status === 400) {
+        setSubmitError("اطلاعات درخواست یا پروفایل کامل نیست.");
+
+        return;
+      }
+
+      if (response.status === 422) {
+        setSubmitError("برای این انتخاب‌ها اوت‌فیت مناسبی پیدا نشد.");
+
+        return;
+      }
+
+      if (!response.ok) {
+        setSubmitError("دریافت پیشنهاد با خطا مواجه شد.");
+
+        return;
+      }
+
+      /*
+        Response واقعی Rule Engine
+      */
+      const recommendation = await response.json();
+
+      /*
+        Response را موقت ذخیره می‌کنیم
+        تا صفحه Recommendation بتواند آن را بخواند.
+      */
+      sessionStorage.setItem(
+        "latestRecommendation",
+        JSON.stringify(recommendation),
+      );
+
+      /*
+        حالا کاربر را به صفحه نتیجه می‌فرستیم.
+      */
+      router.push("/recommendation");
+    } catch (error) {
+      console.error("Recommendation request error:", error);
+
+      setSubmitError("ارتباط با سرور برقرار نشد. دوباره تلاش کنید.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setCurrentQuestionIndex((previousIndex) => previousIndex + 1);
   }
 
   return (
-    <QuestionnaireLayout
-      currentQuestion={currentQuestionIndex + 1}
-      totalQuestions={visibleQuestions.length}
-      currentStage={currentStage}
-      totalStages={TOTAL_STAGES}
-      stageTitle={stageTitle}
-      isFirstQuestion={isFirstQuestion}
-      isLastQuestion={isLastQuestion}
-      canGoNext={canGoNext}
-      onPrevious={handlePrevious}
-      onNext={handleNext}
-      finalButtonText="مشاهده پیشنهاد"
-      showStageInfo={true}
-    >
-      <QuestionCard
-        question={currentQuestion}
-        selectedValues={selectedValues}
-        onSelectOption={handleSelectOption}
-      />
-    </QuestionnaireLayout>
+    <>
+      <QuestionnaireLayout
+        currentQuestion={currentQuestionIndex + 1}
+        totalQuestions={visibleQuestions.length}
+        currentStage={currentStage}
+        totalStages={TOTAL_STAGES}
+        stageTitle={stageTitle}
+        isFirstQuestion={isFirstQuestion}
+        isLastQuestion={isLastQuestion}
+        canGoNext={canGoNext && !isSubmitting}
+        onPrevious={handlePrevious}
+        onNext={handleNext}
+        finalButtonText={
+          isSubmitting ? "در حال ساخت پیشنهاد..." : "مشاهده پیشنهاد"
+        }
+        showStageInfo={true}
+      >
+        <QuestionCard
+          question={currentQuestion}
+          selectedValues={selectedValues}
+          onSelectOption={handleSelectOption}
+        />
+      </QuestionnaireLayout>
+
+      {submitError && (
+        <div
+          dir="rtl"
+          className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-xl bg-red-500/90 px-5 py-3 text-sm text-white shadow-lg"
+        >
+          {submitError}
+        </div>
+      )}
+    </>
   );
 }

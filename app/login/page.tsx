@@ -227,7 +227,11 @@ export default function LoginPage() {
                     </p>
                   )}
                 </div>
-
+                {errors.general && (
+                  <p className="rounded-xl bg-red-100/70 px-4 py-2 text-center text-sm font-medium text-red-800">
+                    {errors.general}
+                  </p>
+                )}
                 {/* Login button */}
                 <button
                   type="submit"

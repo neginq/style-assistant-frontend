@@ -8,34 +8,117 @@ import { questions } from "@/data/questions";
 import QuestionCard from "@/components/questionnaire/QuestionCard";
 import QuestionnaireLayout from "@/components/questionnaire/QuestionnaireLayout";
 
+import { useAuth } from "@/context/AuthContext";
+
+import { mapProfileAnswersToBackend } from "@/utils/profileMapper";
+
+import {
+  mapBackendProfileToAnswers,
+  type BackendUserProfile,
+} from "@/utils/profileResponseMapper";
+
 import type { QuestionnaireAnswers } from "@/types/questionnaire";
 
 export default function ProfileSetupPage() {
   const router = useRouter();
 
+  const { token, isAuthReady, isLoggedIn, logout } = useAuth();
+
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   const [answers, setAnswers] = useState<QuestionnaireAnswers>({});
 
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  const [saveError, setSaveError] = useState("");
+
+  const [loadError, setLoadError] = useState("");
+
   /*
-    اگر قبلاً پروفایل تکمیل شده باشد،
-    جواب‌های قبلی برای حالت ویرایش خوانده می‌شوند.
+    وقتی صفحه باز می‌شود،
+    اطلاعات فعلی کاربر را از Backend می‌گیریم.
+
+    اگر styleProfile وجود داشته باشد:
+    یعنی کاربر در حال Edit است.
+
+    اگر styleProfile برابر null باشد:
+    یعنی اولین بار است که Profile را تکمیل می‌کند.
   */
   useEffect(() => {
-    const savedProfile = localStorage.getItem("profileAnswers");
-
-    if (!savedProfile) {
+    if (!isAuthReady) {
       return;
     }
 
-    try {
-      const parsedProfile: QuestionnaireAnswers = JSON.parse(savedProfile);
-
-      setAnswers(parsedProfile);
-    } catch (error) {
-      console.error("Could not load saved profile:", error);
+    if (!isLoggedIn || !token) {
+      router.push("/login");
+      return;
     }
-  }, []);
+
+    const authToken = token;
+
+    async function loadExistingProfile() {
+      try {
+        setIsLoadingProfile(true);
+        setLoadError("");
+
+        const response = await fetch("http://localhost:5000/user/profile", {
+          method: "GET",
+
+          headers: {
+            Authorization: authToken,
+          },
+        });
+
+        if (response.status === 401) {
+          logout();
+          router.push("/login");
+          return;
+        }
+
+        if (!response.ok) {
+          setLoadError(
+            "دریافت اطلاعات پروفایل انجام نشد. لطفاً دوباره تلاش کنید.",
+          );
+
+          return;
+        }
+
+        const data: BackendUserProfile = await response.json();
+
+        /*
+          Profile قبلاً وجود دارد:
+          جواب‌های Backend را به فرمت سؤال‌های Frontend
+          تبدیل و داخل answers قرار می‌دهیم.
+        */
+        if (data.styleProfile) {
+          const mappedAnswers = mapBackendProfileToAnswers(data);
+
+          setAnswers(mappedAnswers);
+
+          setIsEditMode(true);
+        } else {
+          /*
+            کاربر جدید است و هنوز Profile Style ندارد.
+          */
+          setAnswers({});
+
+          setIsEditMode(false);
+        }
+      } catch (error) {
+        console.error("Could not load existing profile:", error);
+
+        setLoadError("ارتباط با سرور برقرار نشد. لطفاً دوباره تلاش کنید.");
+      } finally {
+        setIsLoadingProfile(false);
+      }
+    }
+
+    loadExistingProfile();
+  }, [isAuthReady, isLoggedIn, token, router, logout]);
 
   const selectedGender = answers.gender?.[0];
 
@@ -57,33 +140,39 @@ export default function ProfileSetupPage() {
 
   const currentQuestion = profileQuestions[currentQuestionIndex];
 
-  if (!currentQuestion) {
-    return null;
-  }
-
-  const selectedValues = answers[currentQuestion.id] ?? [];
+  const selectedValues = currentQuestion
+    ? (answers[currentQuestion.id] ?? [])
+    : [];
 
   const isFirstQuestion = currentQuestionIndex === 0;
 
   const isLastQuestion = currentQuestionIndex === profileQuestions.length - 1;
 
-  const canGoNext = !currentQuestion.required || selectedValues.length > 0;
+  const canGoNext = currentQuestion
+    ? !currentQuestion.required || selectedValues.length > 0
+    : false;
 
   function handleSelectOption(value: string) {
+    if (!currentQuestion) {
+      return;
+    }
+
     setAnswers((previousAnswers) => {
       const previousSelectedValues = previousAnswers[currentQuestion.id] ?? [];
 
       const isMultipleChoice = currentQuestion.type === "multiple";
 
       // -------------------------
-      // سوال چندانتخابی
+      // سؤال چندانتخابی
       // -------------------------
       if (isMultipleChoice) {
         const selectedOption = currentQuestion.options.find(
           (option) => option.value === value,
         );
 
-        // مثل "محدودیتی ندارم"
+        /*
+          مثل "هیچ‌کدام"
+        */
         if (selectedOption?.exclusive) {
           return {
             ...previousAnswers,
@@ -91,7 +180,10 @@ export default function ProfileSetupPage() {
           };
         }
 
-        // حذف گزینه exclusive قبلی
+        /*
+          اگر قبلاً گزینه exclusive انتخاب شده بود،
+          آن را حذف می‌کنیم.
+        */
         const previousWithoutExclusive = previousSelectedValues.filter(
           (selectedValue) => {
             const option = currentQuestion.options.find(
@@ -104,7 +196,10 @@ export default function ProfileSetupPage() {
 
         const optionAlreadySelected = previousWithoutExclusive.includes(value);
 
-        // اگر دوباره کلیک شد، حذف شود
+        /*
+          کلیک دوباره روی گزینه،
+          آن را از انتخاب‌ها حذف می‌کند.
+        */
         if (optionAlreadySelected) {
           return {
             ...previousAnswers,
@@ -115,7 +210,9 @@ export default function ProfileSetupPage() {
           };
         }
 
-        // محدودیت تعداد انتخاب
+        /*
+          حداکثر تعداد انتخاب‌ها رعایت شود.
+        */
         if (
           currentQuestion.maxSelections &&
           previousWithoutExclusive.length >= currentQuestion.maxSelections
@@ -131,17 +228,17 @@ export default function ProfileSetupPage() {
       }
 
       // -------------------------
-      // سوال تک‌انتخابی
+      // سؤال تک‌انتخابی
       // -------------------------
-
       const updatedAnswers = {
         ...previousAnswers,
+
         [currentQuestion.id]: [value],
       };
 
       /*
-        اگر جنسیت عوض شود،
-        داده‌های مربوط به جنسیت قبلی حذف می‌شوند.
+        اگر gender عوض شود،
+        جواب‌های مخصوص gender قبلی باید حذف شوند.
       */
       if (currentQuestion.id === "gender") {
         const newGender = value;
@@ -151,12 +248,6 @@ export default function ProfileSetupPage() {
             delete updatedAnswers[question.id];
           }
         });
-
-        /*
-          چون تعداد و مسیر سؤال‌های جنسیتی ممکن است
-          بعد از تغییر gender تغییر کند،
-          از سؤال اول دوباره جلو می‌رویم.
-        */
       }
 
       return updatedAnswers;
@@ -164,33 +255,132 @@ export default function ProfileSetupPage() {
   }
 
   function handlePrevious() {
-    if (isFirstQuestion) {
+    if (isFirstQuestion || isSaving) {
       return;
     }
 
     setCurrentQuestionIndex((previousIndex) => previousIndex - 1);
   }
 
-  function handleNext() {
-    if (!canGoNext) {
+  async function saveProfile() {
+    if (!isAuthReady) {
+      return;
+    }
+
+    if (!isLoggedIn || !token) {
+      router.push("/login");
+      return;
+    }
+
+    const authToken = token;
+
+    try {
+      setIsSaving(true);
+      setSaveError("");
+
+      /*
+        جواب‌های Frontend را به enumهای Backend
+        تبدیل می‌کنیم.
+      */
+      const profileBody = mapProfileAnswersToBackend(answers);
+
+      console.log("Frontend profile answers:", answers);
+
+      console.log("Backend profile body:", profileBody);
+
+      const response = await fetch("http://localhost:5000/user/profile", {
+        method: "PATCH",
+
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: authToken,
+        },
+
+        body: JSON.stringify(profileBody),
+      });
+
+      if (response.status === 401) {
+        logout();
+        router.push("/login");
+        return;
+      }
+
+      if (!response.ok) {
+        setSaveError("ذخیره پروفایل انجام نشد. لطفاً دوباره تلاش کنید.");
+
+        return;
+      }
+
+      /*
+        اگر کاربر در حال ویرایش Profile قبلی بود،
+        بعد از ذخیره به /profile برمی‌گردد.
+
+        اگر اولین بار Profile را ساخته،
+        طبق flow اصلی به /questions می‌رود.
+      */
+      if (isEditMode) {
+        router.push("/profile");
+      } else {
+        router.push("/questions");
+      }
+    } catch (error) {
+      console.error("Could not save profile:", error);
+
+      setSaveError("ارتباط با سرور برقرار نشد. لطفاً دوباره تلاش کنید.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleNext() {
+    if (!canGoNext || isSaving) {
       return;
     }
 
     if (isLastQuestion) {
-      /*
-        فعلاً ذخیره موقت در فرانت.
-        بعداً PATCH /user/profile جایگزین این قسمت می‌شود.
-      */
-      localStorage.setItem("profileAnswers", JSON.stringify(answers));
-
-      console.log("Saved profile answers:", answers);
-
-      router.push("/profile");
-
+      await saveProfile();
       return;
     }
 
     setCurrentQuestionIndex((previousIndex) => previousIndex + 1);
+  }
+
+  /*
+    صبر می‌کنیم ابتدا Backend مشخص کند
+    Profile قبلی وجود دارد یا نه.
+  */
+  if (!isAuthReady || isLoadingProfile) {
+    return (
+      <main className="flex min-h-svh items-center justify-center bg-[#191b1d] text-white">
+        <p className="text-white/70">در حال بارگذاری پروفایل...</p>
+      </main>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <main className="flex min-h-svh items-center justify-center bg-[#191b1d] px-4 text-white">
+        <div className="w-full max-w-lg rounded-[32px] border border-red-400/20 bg-[#2a232e] p-8 text-center">
+          <h1 className="mb-3 text-2xl font-bold text-[#ebc6f5]">
+            خطا در دریافت پروفایل
+          </h1>
+
+          <p className="mb-7 text-white/55">{loadError}</p>
+
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="rounded-full bg-gradient-to-l from-[#71368d] via-[#914ab0] to-[#b05fc9] px-7 py-3 font-bold text-white"
+          >
+            بازگشت به صفحه اصلی
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (!currentQuestion) {
+    return null;
   }
 
   return (
@@ -199,15 +389,27 @@ export default function ProfileSetupPage() {
       totalQuestions={profileQuestions.length}
       currentStage={1}
       totalStages={1}
-      stageTitle="تکمیل پروفایل استایل"
+      stageTitle={isEditMode ? "ویرایش پروفایل استایل" : "تکمیل پروفایل استایل"}
       isFirstQuestion={isFirstQuestion}
       isLastQuestion={isLastQuestion}
-      canGoNext={canGoNext}
+      canGoNext={canGoNext && !isSaving}
       onPrevious={handlePrevious}
       onNext={handleNext}
-      finalButtonText="تکمیل پروفایل"
+      finalButtonText={
+        isSaving
+          ? "در حال ذخیره..."
+          : isEditMode
+            ? "ذخیره تغییرات"
+            : "تکمیل پروفایل"
+      }
       showStageInfo={false}
     >
+      {saveError && (
+        <p className="mb-4 rounded-xl bg-red-100/70 px-4 py-3 text-center text-sm font-medium text-red-800">
+          {saveError}
+        </p>
+      )}
+
       <QuestionCard
         question={currentQuestion}
         selectedValues={selectedValues}

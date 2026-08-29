@@ -2,31 +2,102 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { questions } from "@/data/questions";
+
+import { useAuth } from "@/context/AuthContext";
+
+import {
+  mapBackendProfileToAnswers,
+  type BackendUserProfile,
+} from "@/utils/profileResponseMapper";
+
 import type { QuestionnaireAnswers } from "@/types/questionnaire";
 
 export default function ProfilePage() {
+  const router = useRouter();
+
+  const { token, isAuthReady, isLoggedIn, logout } = useAuth();
+
+  const [userProfile, setUserProfile] = useState<BackendUserProfile | null>(
+    null,
+  );
+
   const [profileAnswers, setProfileAnswers] =
     useState<QuestionnaireAnswers | null>(null);
 
   const [isLoading, setIsLoading] = useState(true);
 
+  const [loadError, setLoadError] = useState("");
+
   useEffect(() => {
-    const savedProfile = localStorage.getItem("profileAnswers");
+    if (!isAuthReady) {
+      return;
+    }
 
-    if (savedProfile) {
+    if (!isLoggedIn || !token) {
+      router.push("/login");
+      return;
+    }
+    const authToken = token;
+    async function loadProfile() {
       try {
-        const parsedProfile: QuestionnaireAnswers = JSON.parse(savedProfile);
+        setIsLoading(true);
+        setLoadError("");
 
-        setProfileAnswers(parsedProfile);
+        const response = await fetch("http://localhost:5000/user/profile", {
+          method: "GET",
+
+          headers: {
+            Authorization: authToken,
+          },
+        });
+
+        /*
+          اگر token معتبر نباشد،
+          کاربر دیگر login شده محسوب نمی‌شود.
+        */
+        if (response.status === 401) {
+          logout();
+          router.push("/login");
+          return;
+        }
+
+        if (!response.ok) {
+          setLoadError(
+            "دریافت اطلاعات پروفایل انجام نشد. لطفاً دوباره تلاش کنید.",
+          );
+
+          return;
+        }
+
+        const data: BackendUserProfile = await response.json();
+
+        /*
+          اطلاعات اصلی کاربر را نگه می‌داریم
+          تا نام، نام خانوادگی و موبایل نمایش داده شوند.
+        */
+        setUserProfile(data);
+
+        /*
+          enumهای Backend را دوباره به valueهای
+          سؤال‌های Frontend تبدیل می‌کنیم.
+        */
+        const mappedAnswers = mapBackendProfileToAnswers(data);
+
+        setProfileAnswers(mappedAnswers);
       } catch (error) {
-        console.error("Could not read profile answers:", error);
+        console.error("Could not load profile:", error);
+
+        setLoadError("ارتباط با سرور برقرار نشد. لطفاً دوباره تلاش کنید.");
+      } finally {
+        setIsLoading(false);
       }
     }
 
-    setIsLoading(false);
-  }, []);
+    loadProfile();
+  }, [isAuthReady, isLoggedIn, token, router, logout]);
 
   function getAnswerLabels(questionId: string) {
     if (!profileAnswers) {
@@ -48,7 +119,11 @@ export default function ProfilePage() {
     });
   }
 
-  if (isLoading) {
+  /*
+    تا وقتی AuthContext یا API آماده نشده،
+    Loading نشان می‌دهیم.
+  */
+  if (!isAuthReady || isLoading) {
     return (
       <main className="flex min-h-svh items-center justify-center bg-[#191b1d] text-white">
         <p className="text-white/70">در حال بارگذاری پروفایل...</p>
@@ -56,7 +131,42 @@ export default function ProfilePage() {
     );
   }
 
-  if (!profileAnswers) {
+  /*
+    اگر GET با مشکل مواجه شود.
+  */
+  if (loadError) {
+    return (
+      <main className="flex min-h-svh items-center justify-center bg-[#191b1d] px-4 text-white">
+        <div className="w-full max-w-lg rounded-[32px] border border-red-400/20 bg-[#2a232e] p-8 text-center shadow-[0_25px_60px_rgba(0,0,0,0.35)]">
+          <h1 className="mb-3 text-2xl font-bold text-[#ebc6f5]">
+            خطا در دریافت پروفایل
+          </h1>
+
+          <p className="mb-7 leading-7 text-white/55">{loadError}</p>
+
+          <Link
+            href="/"
+            className="inline-flex rounded-full bg-gradient-to-l from-[#71368d] via-[#914ab0] to-[#b05fc9] px-7 py-3 font-bold text-white transition hover:brightness-110"
+          >
+            بازگشت به صفحه اصلی
+          </Link>
+        </div>
+      </main>
+    );
+  }
+
+  /*
+    اگر به هر دلیل اطلاعات کاربر وجود نداشته باشد.
+  */
+  if (!userProfile || !profileAnswers) {
+    return null;
+  }
+
+  /*
+    Backend می‌تواند user را برگرداند،
+    ولی styleProfile هنوز null باشد.
+  */
+  if (!userProfile.styleProfile) {
     return (
       <main className="flex min-h-svh items-center justify-center bg-[#191b1d] px-4 text-white">
         <div className="w-full max-w-lg rounded-[32px] border border-[#b66fd1]/20 bg-[#2a232e] p-8 text-center shadow-[0_25px_60px_rgba(0,0,0,0.35)]">
@@ -163,18 +273,14 @@ export default function ProfilePage() {
 
           <div className="p-6 sm:p-8">
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <AccountItem title="نام" value="بعداً از حساب کاربری" />
+              <AccountItem title="نام" value={userProfile.firstName} />
 
-              <AccountItem title="نام خانوادگی" value="بعداً از حساب کاربری" />
+              <AccountItem title="نام خانوادگی" value={userProfile.lastName} />
 
-              <AccountItem title="شماره موبایل" value="بعداً از حساب کاربری" />
-            </div>
-
-            <div className="mt-6 rounded-2xl border border-[#b96bd4]/10 bg-[#b96bd4]/5 px-4 py-3">
-              <p className="text-xs leading-6 text-white/40">
-                بعد از اتصال کامل Frontend و Backend، این اطلاعات مستقیماً از
-                حساب کاربری شما خوانده می‌شوند.
-              </p>
+              <AccountItem
+                title="شماره موبایل"
+                value={userProfile.mobileNumber}
+              />
             </div>
           </div>
         </section>
