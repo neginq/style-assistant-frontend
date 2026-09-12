@@ -36,12 +36,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   function login(newToken: string) {
+    sessionStorage.removeItem("latestRecommendation");
     localStorage.setItem("authToken", newToken);
     setToken(newToken);
   }
 
   function logout() {
     localStorage.removeItem("authToken");
+    sessionStorage.removeItem("latestRecommendation");
     setToken(null);
   }
 

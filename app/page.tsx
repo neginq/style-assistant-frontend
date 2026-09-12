@@ -87,7 +87,7 @@ export default function Home() {
         باید ابتدا 8 سؤال ثابت را پاسخ دهد.
       */
       if (profile.styleProfile === null) {
-        router.push("/profile/setup");
+        router.push("/profile/setup?next=questions");
         return;
       }
 

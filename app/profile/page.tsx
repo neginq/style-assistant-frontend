@@ -15,6 +15,73 @@ import {
 
 import type { QuestionnaireAnswers } from "@/types/questionnaire";
 
+type HistoryOutfitItem = {
+  slot: string;
+  colorFamily: string;
+  isOwnedReuse: boolean;
+
+  clothingItem: {
+    id: number;
+    slug: string;
+    nameEn: string;
+    nameFa: string;
+    itemType: string;
+    fit: string;
+    formality: string;
+    coverage: string | null;
+    novelty: string;
+  };
+};
+
+type HistoryOutfit = {
+  rank: number;
+  intent: "BEST_MATCH" | "ALTERNATIVE" | "ADVENTUROUS";
+  score: number;
+  noveltyLevel: string;
+  explanation: string;
+  items: HistoryOutfitItem[];
+};
+
+type RecommendationHistoryItem = {
+  requestId: number;
+  createdAt: string;
+  occasion: string;
+  season: string;
+  fitPreference: string;
+  coverageLevel: string | null;
+  formalityLevel: string | null;
+  wardrobePalette: string;
+  wardrobeItems: string[];
+  explorationLevel: string;
+  outfits: HistoryOutfit[];
+};
+
+type RecommendationHistoryResponse = {
+  total: number;
+  limit: number;
+  offset: number;
+  items: RecommendationHistoryItem[];
+};
+
+const occasionLabels: Record<string, string> = {
+  DAILY: "روزمره",
+  UNIVERSITY: "دانشگاه",
+  WORK: "محل کار",
+  FRIENDS_GATHERING: "دورهمی دوستانه",
+  PARTY: "مهمانی",
+  DATE_CAFE: "قرار یا کافه",
+  FORMAL_EVENT: "مراسم رسمی",
+  TRAVEL: "سفر و گردش",
+};
+
+const seasonLabels: Record<string, string> = {
+  SPRING: "بهار",
+  SUMMER: "تابستان",
+  FALL: "پاییز",
+  WINTER: "زمستان",
+  ALL_SEASON: "چهارفصل",
+};
+
 export default function ProfilePage() {
   const router = useRouter();
 
@@ -31,6 +98,14 @@ export default function ProfilePage() {
 
   const [loadError, setLoadError] = useState("");
 
+  const [recommendationHistory, setRecommendationHistory] = useState<
+    RecommendationHistoryItem[]
+  >([]);
+
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+
+  const [historyError, setHistoryError] = useState("");
+
   useEffect(() => {
     if (!isAuthReady) {
       return;
@@ -40,7 +115,9 @@ export default function ProfilePage() {
       router.push("/login");
       return;
     }
+
     const authToken = token;
+
     async function loadProfile() {
       try {
         setIsLoading(true);
@@ -48,16 +125,11 @@ export default function ProfilePage() {
 
         const response = await fetch("http://localhost:5000/user/profile", {
           method: "GET",
-
           headers: {
             Authorization: authToken,
           },
         });
 
-        /*
-          اگر token معتبر نباشد،
-          کاربر دیگر login شده محسوب نمی‌شود.
-        */
         if (response.status === 401) {
           logout();
           router.push("/login");
@@ -68,25 +140,53 @@ export default function ProfilePage() {
           setLoadError(
             "دریافت اطلاعات پروفایل انجام نشد. لطفاً دوباره تلاش کنید.",
           );
-
           return;
         }
 
         const data: BackendUserProfile = await response.json();
 
-        /*
-          اطلاعات اصلی کاربر را نگه می‌داریم
-          تا نام، نام خانوادگی و موبایل نمایش داده شوند.
-        */
         setUserProfile(data);
 
-        /*
-          enumهای Backend را دوباره به valueهای
-          سؤال‌های Frontend تبدیل می‌کنیم.
-        */
         const mappedAnswers = mapBackendProfileToAnswers(data);
 
         setProfileAnswers(mappedAnswers);
+
+        try {
+          setIsHistoryLoading(true);
+          setHistoryError("");
+
+          const historyResponse = await fetch(
+            "http://localhost:5000/recommend/history?limit=5&offset=0",
+            {
+              method: "GET",
+              headers: {
+                Authorization: authToken,
+              },
+            },
+          );
+
+          if (historyResponse.status === 401) {
+            logout();
+            router.push("/login");
+            return;
+          }
+
+          if (!historyResponse.ok) {
+            setHistoryError("دریافت تاریخچه پیشنهادها انجام نشد.");
+            return;
+          }
+
+          const historyData: RecommendationHistoryResponse =
+            await historyResponse.json();
+
+          setRecommendationHistory(historyData.items);
+        } catch (error) {
+          console.error("Could not load recommendation history:", error);
+
+          setHistoryError("ارتباط با سرور برای دریافت تاریخچه برقرار نشد.");
+        } finally {
+          setIsHistoryLoading(false);
+        }
       } catch (error) {
         console.error("Could not load profile:", error);
 
@@ -119,10 +219,21 @@ export default function ProfilePage() {
     });
   }
 
-  /*
-    تا وقتی AuthContext یا API آماده نشده،
-    Loading نشان می‌دهیم.
-  */
+  function handleOpenRecommendation(item: RecommendationHistoryItem) {
+    const recommendation = {
+      requestId: item.requestId,
+      createdAt: item.createdAt,
+      outfits: item.outfits,
+    };
+
+    sessionStorage.setItem(
+      "latestRecommendation",
+      JSON.stringify(recommendation),
+    );
+
+    router.push("/recommendation");
+  }
+
   if (!isAuthReady || isLoading) {
     return (
       <main className="flex min-h-svh items-center justify-center bg-[#191b1d] text-white">
@@ -131,9 +242,6 @@ export default function ProfilePage() {
     );
   }
 
-  /*
-    اگر GET با مشکل مواجه شود.
-  */
   if (loadError) {
     return (
       <main className="flex min-h-svh items-center justify-center bg-[#191b1d] px-4 text-white">
@@ -155,17 +263,10 @@ export default function ProfilePage() {
     );
   }
 
-  /*
-    اگر به هر دلیل اطلاعات کاربر وجود نداشته باشد.
-  */
   if (!userProfile || !profileAnswers) {
     return null;
   }
 
-  /*
-    Backend می‌تواند user را برگرداند،
-    ولی styleProfile هنوز null باشد.
-  */
   if (!userProfile.styleProfile) {
     return (
       <main className="flex min-h-svh items-center justify-center bg-[#191b1d] px-4 text-white">
@@ -229,7 +330,6 @@ export default function ProfilePage() {
       className="min-h-svh bg-[#191b1d] px-4 py-8 text-white sm:px-6"
     >
       <section className="mx-auto w-full max-w-5xl">
-        {/* Header */}
         <header className="mb-10 flex items-center justify-between">
           <Link
             href="/"
@@ -246,14 +346,12 @@ export default function ProfilePage() {
           </Link>
         </header>
 
-        {/* Page heading */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-[#efc9f7] sm:text-4xl">
             پروفایل من
           </h1>
         </div>
 
-        {/* Account section */}
         <section className="mb-8 overflow-hidden rounded-[34px] border border-[#b96bd4]/15 bg-gradient-to-br from-[#29252d] via-[#252428] to-[#212326] shadow-[0_22px_55px_rgba(0,0,0,0.28)]">
           <div className="flex flex-col gap-4 border-b border-white/8 px-6 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
             <div>
@@ -285,9 +383,7 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        {/* Style profile */}
         <section className="overflow-hidden rounded-[36px] border border-[#d49ae6]/20 bg-gradient-to-br from-[#c887df] via-[#bd78d5] to-[#a963c2] text-[#281b2d] shadow-[0_28px_65px_rgba(97,42,121,0.25)]">
-          {/* Header */}
           <div className="flex flex-col gap-5 border-b border-[#6f327f]/20 px-6 py-6 sm:flex-row sm:items-center sm:justify-between sm:px-8">
             <div>
               <h2 className="text-2xl font-bold">پروفایل استایل</h2>
@@ -307,7 +403,6 @@ export default function ProfilePage() {
           </div>
 
           <div className="p-6 sm:p-8">
-            {/* Personal features */}
             <section>
               <div className="mb-5 flex items-center gap-3">
                 <div className="h-8 w-1.5 rounded-full bg-[#67327d]" />
@@ -336,7 +431,6 @@ export default function ProfilePage() {
 
             <div className="my-8 border-t border-[#6c337e]/20" />
 
-            {/* Preferences */}
             <section>
               <div className="mb-5 flex items-center gap-3">
                 <div className="h-8 w-1.5 rounded-full bg-[#67327d]" />
@@ -364,6 +458,90 @@ export default function ProfilePage() {
                 <ProfileItem title="رنگ‌های نامطلوب" values={dislikedColors} />
               </div>
             </section>
+          </div>
+        </section>
+
+        {/* Recommendation History */}
+        <section className="mt-8 overflow-hidden rounded-[34px] border border-[#b96bd4]/15 bg-gradient-to-br from-[#29252d] via-[#252428] to-[#212326] shadow-[0_22px_55px_rgba(0,0,0,0.28)]">
+          <div className="flex flex-col gap-3 border-b border-white/8 px-6 py-6 sm:px-8">
+            <h2 className="text-2xl font-bold text-[#e4b7ef]">
+              تاریخچه پیشنهادها
+            </h2>
+
+            <p className="text-sm text-white/45">
+              آخرین استایل‌هایی که Stila برای شما ساخته است
+            </p>
+          </div>
+
+          <div className="p-6 sm:p-8">
+            {isHistoryLoading ? (
+              <p className="text-sm text-white/50">
+                در حال دریافت تاریخچه پیشنهادها...
+              </p>
+            ) : historyError ? (
+              <div className="rounded-2xl border border-red-400/20 bg-red-500/5 p-5">
+                <p className="text-sm text-red-200/80">{historyError}</p>
+              </div>
+            ) : recommendationHistory.length === 0 ? (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-7 text-center">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#b96bd4]/15 text-xl">
+                  ✨
+                </div>
+
+                <h3 className="font-bold text-[#e5b8f0]">
+                  هنوز پیشنهادی ثبت نشده
+                </h3>
+
+                <p className="mt-2 text-sm leading-7 text-white/45">
+                  بعد از دریافت اولین پیشنهاد استایل، می‌توانید آن را از اینجا
+                  دوباره مشاهده کنید.
+                </p>
+
+                <Link
+                  href="/questions"
+                  className="mt-5 inline-flex rounded-full bg-[#82429c] px-6 py-2.5 text-sm font-bold text-white transition hover:bg-[#914cae]"
+                >
+                  دریافت پیشنهاد
+                </Link>
+              </div>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2">
+                {recommendationHistory.map((item) => (
+                  <article
+                    key={item.requestId}
+                    className="rounded-3xl border border-white/10 bg-white/[0.045] p-5 transition hover:border-[#c47ddd]/30 hover:bg-white/[0.07]"
+                  >
+                    <div className="mb-4 flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-bold text-[#dda7eb]">
+                          {occasionLabels[item.occasion] ?? item.occasion}
+                        </p>
+
+                        <p className="mt-1 text-xs text-white/40">
+                          {seasonLabels[item.season] ?? item.season}
+                        </p>
+                      </div>
+
+                      <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-xs text-white/45">
+                        {item.outfits.length} پیشنهاد
+                      </span>
+                    </div>
+
+                    <p className="mb-5 text-xs text-white/35">
+                      {new Date(item.createdAt).toLocaleDateString("fa-IR")}
+                    </p>
+
+                    <button
+                      type="button"
+                      onClick={() => handleOpenRecommendation(item)}
+                      className="w-full rounded-xl bg-[#7e3e97] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#914aab]"
+                    >
+                      مشاهده پیشنهادها
+                    </button>
+                  </article>
+                ))}
+              </div>
+            )}
           </div>
         </section>
       </section>

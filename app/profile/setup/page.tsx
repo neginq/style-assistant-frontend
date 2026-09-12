@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { questions } from "@/data/questions";
 
@@ -21,7 +21,9 @@ import type { QuestionnaireAnswers } from "@/types/questionnaire";
 
 export default function ProfileSetupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
+  const next = searchParams.get("next");
   const { token, isAuthReady, isLoggedIn, logout } = useAuth();
 
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -320,8 +322,10 @@ export default function ProfileSetupPage() {
       */
       if (isEditMode) {
         router.push("/profile");
-      } else {
+      } else if (next === "questions") {
         router.push("/questions");
+      } else {
+        router.push("/profile");
       }
     } catch (error) {
       console.error("Could not save profile:", error);
