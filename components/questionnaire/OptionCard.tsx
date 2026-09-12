@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { Sparkles } from "lucide-react";
 
-//import type { QuestionOption, VisualType } from "@/types/questionnaire";
+import type { QuestionOption, VisualType } from "@/types/questionnaire";
 
 type OptionCardProps = {
   option: QuestionOption;

@@ -286,10 +286,6 @@ export default function ProfileSetupPage() {
       */
       const profileBody = mapProfileAnswersToBackend(answers);
 
-      console.log("Frontend profile answers:", answers);
-
-      console.log("Backend profile body:", profileBody);
-
       const response = await fetch("http://localhost:5000/user/profile", {
         method: "PATCH",
 
